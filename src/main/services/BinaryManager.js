@@ -23,28 +23,42 @@ class BinaryManager {
   isYtDlpAvailable() {
     // Check local bin file
     if (fs.existsSync(this.ytDlpPath)) {
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(this.ytDlpPath, 0o755); } catch (e) {}
+      }
       return true;
     }
+
     // Check system PATH
     try {
       execSync('yt-dlp --version', { stdio: 'ignore' });
       this.ytDlpPath = 'yt-dlp';
       return true;
-    } catch (e) {
-      // Check python module yt-dlp
-      try {
-        execSync('python -m yt_dlp --version', { stdio: 'ignore' });
-        this.usePythonModule = true;
-        return true;
-      } catch (err) {
-        return false;
-      }
+    } catch (e) {}
+
+    // Check python3 module yt-dlp
+    try {
+      execSync('python3 -m yt_dlp --version', { stdio: 'ignore' });
+      this.usePythonCmd = 'python3';
+      return true;
+    } catch (e) {}
+
+    // Check python module yt-dlp
+    try {
+      execSync('python -m yt_dlp --version', { stdio: 'ignore' });
+      this.usePythonCmd = 'python';
+      return true;
+    } catch (err) {
+      return false;
     }
   }
 
   isFfmpegAvailable() {
     const ffmpegPath = path.join(this.binDir, process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
     if (fs.existsSync(ffmpegPath)) {
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(ffmpegPath, 0o755); } catch (e) {}
+      }
       return ffmpegPath;
     }
     try {
@@ -56,11 +70,11 @@ class BinaryManager {
   }
 
   getYtDlpCommand() {
-    if (fs.existsSync(this.ytDlpPath)) {
+    if (fs.existsSync(this.ytDlpPath) || this.ytDlpPath === 'yt-dlp') {
       return { cmd: this.ytDlpPath, argsPrefix: [] };
     }
-    if (this.usePythonModule) {
-      return { cmd: 'python', argsPrefix: ['-m', 'yt_dlp'] };
+    if (this.usePythonCmd) {
+      return { cmd: this.usePythonCmd, argsPrefix: ['-m', 'yt_dlp'] };
     }
     return { cmd: 'yt-dlp', argsPrefix: [] };
   }
