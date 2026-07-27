@@ -8,8 +8,8 @@ export default function Header({ onOpenSettings, activeCount = 0 }) {
   return (
     <header className="header">
       <div className="logo-group">
-        <div className="logo-icon">
-          <Download size={22} />
+        <div className="logo-icon" style={{ padding: 0, overflow: 'hidden', background: 'transparent', border: 'none' }}>
+          <img src="/logo.png" alt="Video Downloader Logo" style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'cover', boxShadow: '0 0 12px rgba(124, 58, 237, 0.4)' }} />
         </div>
         <div>
           <h1 className="logo-title">Video Downloader</h1>
