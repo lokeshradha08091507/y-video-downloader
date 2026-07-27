@@ -53,7 +53,15 @@ class YtDlpProvider extends BaseProvider {
     }
 
     const { cmd, argsPrefix } = binaryManager.getYtDlpCommand();
-    const args = [...argsPrefix, '--dump-json', '--no-warnings', '--no-playlist', url];
+    const args = [
+      ...argsPrefix, 
+      '--dump-json', 
+      '--no-warnings', 
+      '--no-playlist', 
+      '--js-runtimes', 'node',
+      '--extractor-args', 'youtube:player_client=android,ios,mweb,web_creator',
+      url
+    ];
 
     return new Promise((resolve, reject) => {
       const proc = spawn(cmd, args, { windowsHide: true });
@@ -162,6 +170,7 @@ class YtDlpProvider extends BaseProvider {
     const args = [
       ...argsPrefix,
       '--js-runtimes', 'node',
+      '--extractor-args', 'youtube:player_client=android,ios,mweb,web_creator',
       '-f', formatSelection,
       '--output', outputTemplate,
       '--newline',
