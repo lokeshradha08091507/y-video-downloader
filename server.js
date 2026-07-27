@@ -7,6 +7,9 @@ const providerManager = require('./src/main/services/ProviderManager');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const https = require('https');
+const http = require('http');
+
 // Enable CORS & JSON parsing
 app.use(express.json());
 app.use((req, res, next) => {
@@ -16,6 +19,9 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
+
+// Health check endpoint for uptime monitoring & keep-alive
+app.get('/health', (req, res) => res.status(200).send('OK'));
 
 // Serve built static frontend files
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -102,4 +108,18 @@ app.listen(PORT, () => {
   console.log(`🚀 Video Downloader Web Server running on port ${PORT}`);
   console.log(`🌐 Local Access: http://localhost:${PORT}`);
   console.log(`================================================`);
+
+  // Render Keep-Alive Heartbeat: Pings itself every 10 mins to prevent free instance spin-down
+  const renderUrl = process.env.RENDER_EXTERNAL_URL;
+  if (renderUrl) {
+    console.log(`💓 Keep-alive heartbeat active for ${renderUrl}`);
+    setInterval(() => {
+      const client = renderUrl.startsWith('https') ? https : http;
+      client.get(`${renderUrl}/health`, (res) => {
+        console.log(`Keep-alive ping sent (Status: ${res.statusCode})`);
+      }).on('error', (e) => {
+        console.warn('Keep-alive ping error:', e.message);
+      });
+    }, 10 * 60 * 1000); // Every 10 minutes
+  }
 });
