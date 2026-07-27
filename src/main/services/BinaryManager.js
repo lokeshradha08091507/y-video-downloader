@@ -79,6 +79,20 @@ class BinaryManager {
     return { cmd: 'yt-dlp', argsPrefix: [] };
   }
 
+  async updateYtDlp() {
+    try {
+      if (!this.isYtDlpAvailable()) {
+        await this.ensureYtDlp();
+        return;
+      }
+      const { cmd, argsPrefix } = this.getYtDlpCommand();
+      execSync(`${cmd} ${argsPrefix.join(' ')} -U`, { stdio: 'ignore' });
+      console.log('yt-dlp engine updated to latest release.');
+    } catch (e) {
+      console.warn('yt-dlp update notice:', e.message);
+    }
+  }
+
   async ensureYtDlp(progressCallback = () => {}) {
     if (this.isYtDlpAvailable()) {
       return this.ytDlpPath;

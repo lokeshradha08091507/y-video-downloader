@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const providerManager = require('./src/main/services/ProviderManager');
+const binaryManager = require('./src/main/services/BinaryManager');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -108,6 +109,9 @@ app.listen(PORT, () => {
   console.log(`🚀 Video Downloader Web Server running on port ${PORT}`);
   console.log(`🌐 Local Access: http://localhost:${PORT}`);
   console.log(`================================================`);
+
+  // Auto-update yt-dlp engine on server boot
+  binaryManager.updateYtDlp();
 
   // Render Keep-Alive Heartbeat: Pings itself every 10 mins to prevent free instance spin-down
   const renderUrl = process.env.RENDER_EXTERNAL_URL;

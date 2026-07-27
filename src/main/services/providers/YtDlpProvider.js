@@ -9,6 +9,19 @@ class YtDlpProvider extends BaseProvider {
     super('YtDlpProvider');
   }
 
+  getCookieArgs() {
+    const cookiesPath = path.join(process.cwd(), 'cookies.txt');
+    if (process.env.COOKIES_TEXT && !fs.existsSync(cookiesPath)) {
+      try {
+        fs.writeFileSync(cookiesPath, process.env.COOKIES_TEXT);
+      } catch (e) {}
+    }
+    if (fs.existsSync(cookiesPath)) {
+      return ['--cookies', cookiesPath];
+    }
+    return [];
+  }
+
   canHandle(url) {
     if (!url || typeof url !== 'string') return false;
     try {
@@ -53,6 +66,7 @@ class YtDlpProvider extends BaseProvider {
     }
 
     const { cmd, argsPrefix } = binaryManager.getYtDlpCommand();
+    const cookieArgs = this.getCookieArgs();
     const args = [
       ...argsPrefix, 
       '--dump-json', 
@@ -60,6 +74,7 @@ class YtDlpProvider extends BaseProvider {
       '--no-playlist', 
       '--js-runtimes', 'node',
       '--extractor-args', 'youtube:player_client=android,ios,mweb,web_creator',
+      ...cookieArgs,
       url
     ];
 
@@ -155,6 +170,7 @@ class YtDlpProvider extends BaseProvider {
     }
 
     const { cmd, argsPrefix } = binaryManager.getYtDlpCommand();
+    const cookieArgs = this.getCookieArgs();
     const ffmpegPath = binaryManager.isFfmpegAvailable();
     const formatSelection = format?.formatId || 'b/best';
     const safeTitle = (filename || '%(title)s').replace(/[/\\?%*:|"<>]/g, '_');
@@ -171,6 +187,7 @@ class YtDlpProvider extends BaseProvider {
       ...argsPrefix,
       '--js-runtimes', 'node',
       '--extractor-args', 'youtube:player_client=android,ios,mweb,web_creator',
+      ...cookieArgs,
       '-f', formatSelection,
       '--output', outputTemplate,
       '--newline',
