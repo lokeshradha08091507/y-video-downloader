@@ -61,8 +61,8 @@ app.get('/api/download', async (req, res) => {
 
     const savedPath = await provider.download(
       { url: targetUrl, destDir: tmpDir, filename: `web_server_${Date.now()}`, format },
-      () => {},
-      { isCancelled: () => false, isPaused: () => false, onCancel: () => {} }
+      () => { },
+      { isCancelled: () => false, isPaused: () => false, onCancel: () => { } }
     );
 
     if (fs.existsSync(savedPath)) {
@@ -77,11 +77,11 @@ app.get('/api/download', async (req, res) => {
       const stream = fs.createReadStream(savedPath);
       stream.pipe(res);
       stream.on('end', () => {
-        try { fs.unlinkSync(savedPath); } catch (e) {}
+        try { fs.unlinkSync(savedPath); } catch (e) { }
       });
       stream.on('error', (err) => {
         console.error('File stream error:', err);
-        try { fs.unlinkSync(savedPath); } catch (e) {}
+        try { fs.unlinkSync(savedPath); } catch (e) { }
       });
     } else {
       throw new Error('Downloaded file not found on server');
