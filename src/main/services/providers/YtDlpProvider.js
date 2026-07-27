@@ -67,34 +67,42 @@ class YtDlpProvider extends BaseProvider {
 
     const { cmd, argsPrefix } = binaryManager.getYtDlpCommand();
     const cookieArgs = this.getCookieArgs();
-    const args = [
-      ...argsPrefix, 
-      '--dump-json', 
-      '--no-warnings', 
-      '--no-playlist', 
-      '--js-runtimes', 'node',
-      '--extractor-args', 'youtube:player_client=android,ios,mweb,web_creator',
-      ...cookieArgs,
-      url
-    ];
 
-    return new Promise((resolve, reject) => {
-      const proc = spawn(cmd, args, { windowsHide: true });
-      let stdout = '';
-      let stderr = '';
+    // Client identities verified to bypass bot challenges on cloud datacenter IPs: android, tv_embedded, android_vr
+    const clientOptions = ['android', 'tv_embedded', 'android_vr'];
+    let lastError = null;
 
-      proc.stdout.on('data', (data) => { stdout += data.toString(); });
-      proc.stderr.on('data', (data) => { stderr += data.toString(); });
+    for (const client of clientOptions) {
+      const args = [
+        ...argsPrefix, 
+        '--dump-json', 
+        '--no-warnings', 
+        '--no-playlist', 
+        '--js-runtimes', 'node',
+        '--extractor-args', `youtube:player_client=${client}`,
+        ...cookieArgs,
+        url
+      ];
 
-      proc.on('close', (code) => {
-        if (code !== 0 || !stdout.trim()) {
-          console.warn('yt-dlp metadata extract failed or non-zero exit:', stderr);
-          const cleanErr = stderr.split('\n').filter(l => l.includes('ERROR:') || l.includes('Warning:')).join(' ') || stderr || 'Could not extract video metadata.';
-          return reject(new Error(`YouTube URL analysis error: ${cleanErr}`));
-        }
+      const res = await new Promise((resolve) => {
+        const proc = spawn(cmd, args, { windowsHide: true });
+        let stdout = '';
+        let stderr = '';
 
+        proc.stdout.on('data', (data) => { stdout += data.toString(); });
+        proc.stderr.on('data', (data) => { stderr += data.toString(); });
+
+        proc.on('close', (code) => {
+          if (code === 0 && stdout.trim()) {
+            return resolve({ success: true, stdout });
+          }
+          resolve({ success: false, stderr });
+        });
+      });
+
+      if (res.success) {
         try {
-          const json = JSON.parse(stdout);
+          const json = JSON.parse(res.stdout);
           const hasFfmpeg = !!binaryManager.isFfmpegAvailable();
 
           // Map yt-dlp formats to clean simplified user options with robust fallbacks
@@ -125,40 +133,44 @@ class YtDlpProvider extends BaseProvider {
             { res: '1080p', height: 1080, fId: 'bestvideo[height<=1080]+bestaudio/b[height<=1080]/best' },
             { res: '720p', height: 720, fId: 'bestvideo[height<=720]+bestaudio/b[height<=720]/best' },
             { res: '480p', height: 480, fId: 'bestvideo[height<=480]+bestaudio/b[height<=480]/best' },
-            { res: '360p', height: 360, fId: 'bestvideo[height<=360]+bestaudio/b[height<=360]/best' }
+            { res: '360p', height: 360, fId: 'b[height<=360]/best[height<=360]' }
           ] : [
-            { res: '1080p', height: 1080, fId: 'b[height<=1080]/best[height<=1080]/b/best' },
-            { res: '720p', height: 720, fId: 'b[height<=720]/best[height<=720]/b/best' },
-            { res: '480p', height: 480, fId: 'b[height<=480]/best[height<=480]/b/best' },
-            { res: '360p', height: 360, fId: 'b[height<=360]/best[height<=360]/b/best' }
+            { res: '720p', height: 720, fId: 'b[height<=720]/best[height<=720]' },
+            { res: '480p', height: 480, fId: 'b[height<=480]/best[height<=480]' },
+            { res: '360p', height: 360, fId: 'b[height<=360]/best[height<=360]' }
           ];
 
-          for (const r of resolutions) {
+          resolutions.forEach(r => {
             formats.push({
               formatId: r.fId,
-              resolution: `${r.res} HD`,
+              resolution: `${r.res} Video`,
               container: 'mp4',
               type: 'video',
-              note: `${r.res} Video + Audio (MP4)`,
-              estimatedSizeMb: json.duration ? parseFloat(((json.duration * r.height * 300) / (1024 * 1024 * 8)).toFixed(1)) : 55.0
+              note: hasFfmpeg ? `High Definition ${r.res}` : `Standard Stream ${r.res}`,
+              estimatedSizeMb: json.duration ? parseFloat(((json.duration * r.height * 10) / (1024 * 8)).toFixed(1)) : 25.0
             });
-          }
+          });
 
-          resolve({
+          return {
             provider: this.name,
             id: json.id || `yt-${Date.now()}`,
             originalUrl: url,
             title: json.title || 'Untitled Video',
-            thumbnail: json.thumbnail || (json.thumbnails && json.thumbnails[json.thumbnails.length - 1]?.url) || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&q=80',
+            thumbnail: json.thumbnail || (json.thumbnails && json.thumbnails[0]?.url) || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&q=80',
             duration: json.duration || 0,
-            author: json.uploader || json.channel || 'YouTube Uploader',
+            author: json.uploader || json.channel || 'Unknown Author',
             formats
-          });
-        } catch (err) {
-          reject(new Error(`Failed to parse metadata: ${err.message}`));
+          };
+        } catch (parseErr) {
+          lastError = parseErr.message;
         }
-      });
-    });
+      } else {
+        lastError = res.stderr;
+      }
+    }
+
+    const cleanErr = (lastError || '').split('\n').filter(l => l.includes('ERROR:') || l.includes('Warning:')).join(' ') || lastError || 'Could not extract video metadata.';
+    throw new Error(`YouTube URL analysis error: ${cleanErr}`);
   }
 
   async download(options, progressCallback, stateManager) {
@@ -186,7 +198,7 @@ class YtDlpProvider extends BaseProvider {
     const args = [
       ...argsPrefix,
       '--js-runtimes', 'node',
-      '--extractor-args', 'youtube:player_client=android,ios,mweb,web_creator',
+      '--extractor-args', 'youtube:player_client=android,tv_embedded',
       ...cookieArgs,
       '-f', formatSelection,
       '--output', outputTemplate,
