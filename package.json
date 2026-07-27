@@ -1,0 +1,53 @@
+{
+  "name": "video-downloader",
+  "version": "1.0.0",
+  "description": "Production-ready modern Video Downloader desktop and web application",
+  "main": "src/main/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "electron .",
+    "start:web": "node server.js",
+    "package": "vite build && electron-builder"
+  },
+  "keywords": [
+    "video-downloader",
+    "electron",
+    "react",
+    "express",
+    "web-app"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "express": "^4.21.2",
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "com.videodownloader.app",
+    "productName": "Video Downloader",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "src/main/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    }
+  }
+}
